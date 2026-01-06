@@ -18,13 +18,33 @@ import type { FetchResult } from "../types.js";
 
 export interface FetchOptions {
   cwd?: string;
+  /** Override file modification permission: true = allow, false = deny, undefined = prompt */
+  allowModifications?: boolean;
 }
 
 /**
  * Check if file modifications are allowed
- * Uses settings.json as the single source of truth
+ * Priority:
+ * 1. CLI flag override (--modify / --no-modify)
+ * 2. Stored preference in settings.json
+ * 3. Prompt user
  */
-async function checkFileModificationPermission(cwd: string): Promise<boolean> {
+async function checkFileModificationPermission(
+  cwd: string,
+  cliOverride?: boolean,
+): Promise<boolean> {
+  // CLI flag takes precedence
+  if (cliOverride !== undefined) {
+    // Save the preference for future runs
+    await setFileModificationPermission(cliOverride, cwd);
+    if (cliOverride) {
+      console.log("✓ File modifications enabled (--modify)");
+    } else {
+      console.log("✗ File modifications disabled (--modify=false)");
+    }
+    return cliOverride;
+  }
+
   // Check settings file for stored preference
   const storedPermission = await getFileModificationPermission(cwd);
   if (storedPermission !== undefined) {
@@ -62,7 +82,7 @@ export async function fetchCommand(
   const results: FetchResult[] = [];
 
   // Check if we're allowed to modify files
-  const canModifyFiles = await checkFileModificationPermission(cwd);
+  const canModifyFiles = await checkFileModificationPermission(cwd, options.allowModifications);
 
   if (canModifyFiles) {
     // Ensure .gitignore has opensrc/ entry

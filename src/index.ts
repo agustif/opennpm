@@ -18,7 +18,12 @@ program
 program
   .argument("[packages...]", "packages to fetch (e.g., zod, react@18.2.0)")
   .option("--cwd <path>", "working directory (default: current directory)")
-  .action(async (packages: string[], options: { cwd?: string }) => {
+  .option("--modify [value]", "allow/deny modifying .gitignore, tsconfig.json, AGENTS.md", (val) => {
+    if (val === undefined || val === "" || val === "true") return true;
+    if (val === "false") return false;
+    return true;
+  })
+  .action(async (packages: string[], options: { cwd?: string; modify?: boolean }) => {
     if (packages.length === 0) {
       program.help();
       return;
@@ -26,6 +31,7 @@ program
 
     await fetchCommand(packages, {
       cwd: options.cwd,
+      allowModifications: options.modify,
     });
   });
 
