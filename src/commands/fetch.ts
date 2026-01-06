@@ -1,12 +1,11 @@
 import { parsePackageSpec, resolvePackage } from '../lib/registry.js';
 import { detectInstalledVersion } from '../lib/version.js';
-import { fetchSource, packageExists, listSources } from '../lib/git.js';
+import { fetchSource, packageExists, listSources, readMetadata } from '../lib/git.js';
 import { ensureGitignore } from '../lib/gitignore.js';
 import { updateAgentsMd } from '../lib/agents.js';
 import type { FetchResult } from '../types.js';
 
 export interface FetchOptions {
-  force?: boolean;
   cwd?: string;
 }
 
@@ -31,21 +30,8 @@ export async function fetchCommand(
     
     console.log(`\nFetching ${name}...`);
     
-    // Check if already exists
-    if (!options.force && packageExists(name, cwd)) {
-      console.log(`  ⚠ ${name} already exists. Use --force to overwrite.`);
-      results.push({
-        package: name,
-        version: '',
-        path: '',
-        success: false,
-        error: 'Already exists',
-      });
-      continue;
-    }
-    
     try {
-      // Determine version
+      // Determine target version
       let version = explicitVersion;
       
       if (!version) {
@@ -59,6 +45,25 @@ export async function fetchCommand(
         }
       } else {
         console.log(`  → Using specified version: ${version}`);
+      }
+      
+      // Check if already exists with the same version
+      if (packageExists(name, cwd)) {
+        const existingMeta = await readMetadata(name, cwd);
+        if (existingMeta && existingMeta.version === version) {
+          console.log(`  ✓ Already up to date (${version})`);
+          results.push({
+            package: name,
+            version: existingMeta.version,
+            path: existingMeta.repoDirectory 
+              ? `${cwd}/opensrc/${name}/${existingMeta.repoDirectory}`
+              : `${cwd}/opensrc/${name}`,
+            success: true,
+          });
+          continue;
+        } else if (existingMeta) {
+          console.log(`  → Updating ${existingMeta.version} → ${version || 'latest'}`);
+        }
       }
       
       // Resolve package info from npm registry

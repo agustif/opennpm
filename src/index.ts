@@ -15,16 +15,14 @@ program
 // Default command: fetch packages
 program
   .argument('[packages...]', 'packages to fetch (e.g., zod, react@18.2.0)')
-  .option('-f, --force', 'overwrite existing sources')
   .option('--cwd <path>', 'working directory (default: current directory)')
-  .action(async (packages: string[], options: { force?: boolean; cwd?: string }) => {
+  .action(async (packages: string[], options: { cwd?: string }) => {
     if (packages.length === 0) {
       program.help();
       return;
     }
     
     await fetchCommand(packages, {
-      force: options.force,
       cwd: options.cwd,
     });
   });
