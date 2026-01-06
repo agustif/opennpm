@@ -1,7 +1,8 @@
 import { parsePackageSpec, resolvePackage } from '../lib/registry.js';
 import { detectInstalledVersion } from '../lib/version.js';
-import { fetchSource, packageExists } from '../lib/git.js';
+import { fetchSource, packageExists, listSources } from '../lib/git.js';
 import { ensureGitignore } from '../lib/gitignore.js';
+import { updateAgentsMd } from '../lib/agents.js';
 import type { FetchResult } from '../types.js';
 
 export interface FetchOptions {
@@ -102,6 +103,15 @@ export async function fetchCommand(
   const failed = results.filter(r => !r.success).length;
   
   console.log(`\nDone: ${successful} succeeded, ${failed} failed`);
+  
+  // Update AGENTS.md with all fetched sources
+  if (successful > 0) {
+    const allSources = await listSources(cwd);
+    const agentsUpdated = await updateAgentsMd(allSources, cwd);
+    if (agentsUpdated) {
+      console.log('✓ Updated AGENTS.md');
+    }
+  }
   
   return results;
 }
